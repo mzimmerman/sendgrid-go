@@ -6,7 +6,6 @@ import (
 	netmail "net/mail"
 	"strings"
 	"sync"
-	"github.com/elbuo8/smtpmail"
 
 	"appengine"
 	"appengine/datastore"
@@ -20,9 +19,9 @@ var configSync sync.Mutex
 
 var ErrConfig = errors.New("Unable to fetch SendGrid config")
 
-var sendgridDelay = delay.Func("sendgrid", sendMail)
+var SendgridDelay = delay.Func("sendgrid", sendMail)
 
-func sendMail(c appengine.Context, sgmail SGMail) error {
+func sendMail(c appengine.Context, sgmail *SGMail) error {
 	if appengine.IsDevAppServer() {
 		c.Infof("Would have sent e-mail - %#v", sgmail)
 		return nil
@@ -73,12 +72,10 @@ func loadConfig(c appengine.Context) error {
 
 func migrateMail(m *aemail.Message) (*SGMail, error) {
 	sgmail := SGMail{
-		Mail: smtpmail.Mail{
-			Subject: m.Subject,
-			HTML:    m.HTMLBody,
-			Text:    m.Body,
-			ReplyTo: m.ReplyTo,
-		},
+		Subject: m.Subject,
+		HTML:    m.HTMLBody,
+		Text:    m.Body,
+		ReplyTo: m.ReplyTo,
 	}
 	if address, err := netmail.ParseAddress(m.Sender); err == nil {
 		sgmail.From = address.Address
@@ -88,8 +85,8 @@ func migrateMail(m *aemail.Message) (*SGMail, error) {
 	}
 	if addresses, err := netmail.ParseAddressList(strings.Join(m.To, ",")); err == nil {
 		for _, addr := range addresses {
-			sgmail.Mail.To = append(sgmail.Mail.To, addr.Address)
-			sgmail.Mail.ToName = append(sgmail.Mail.ToName, addr.Name)
+			sgmail.To = append(sgmail.To, addr.Address)
+			sgmail.ToName = append(sgmail.ToName, addr.Name)
 		}
 	} else {
 		return nil, fmt.Errorf("Error parsing To addresses - %v", err)
@@ -97,7 +94,7 @@ func migrateMail(m *aemail.Message) (*SGMail, error) {
 	if len(m.Bcc) > 0 {
 		if addresses, err := netmail.ParseAddressList(strings.Join(m.Bcc, ",")); err == nil {
 			for _, addr := range addresses {
-				sgmail.Mail.Bcc = append(sgmail.Mail.Bcc, addr.Address)
+				sgmail.Bcc = append(sgmail.Bcc, addr.Address)
 			}
 		} else {
 			return nil, fmt.Errorf("Error parsing BCC - %v", err)
@@ -111,6 +108,6 @@ func SendMailDelay(c appengine.Context, m *aemail.Message) error {
 	if err != nil {
 		return err
 	}
-	sendgridDelay.Call(c, *sgmail)
+	SendgridDelay.Call(c, *sgmail)
 	return nil
 }
