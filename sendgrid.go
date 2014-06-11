@@ -41,7 +41,7 @@ func (sg *SGClient) buildURL(m *SGMail) (url.Values, error) {
 	values.Set("text", m.Text)
 	values.Set("from", m.From)
 	values.Set("replyto", m.ReplyTo)
-	apiHeaders, err := m.SMTPAPIHeader.JsonString()
+	apiHeaders, err := m.SMTPAPIHeader.JSONString()
 	if err != nil {
 		return nil, fmt.Errorf("sendgrid.go: error:%v", err)
 	}
