@@ -110,6 +110,6 @@ func SendMailDelay(c appengine.Context, m *aemail.Message) error {
 	if err != nil {
 		return err
 	}
-	SendgridDelay.Call(c, *sgmail)
+	SendgridDelay.Call(c, sgmail)
 	return nil
 }
