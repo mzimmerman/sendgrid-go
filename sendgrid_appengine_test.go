@@ -3,7 +3,7 @@
 package sendgrid
 
 import (
-	"net/mail"
+	"reflect"
 	"testing"
 
 	aemail "appengine/mail"
@@ -11,14 +11,15 @@ import (
 
 func TestMigrate(t *testing.T) {
 	message := NewMail()
-	address, _ := mail.ParseAddress("John Doe <john@email.com>")
-	message.AddRecipient(address)
-	message.AddSubject("test")
-	message.AddHTML("html")
-	message.AddText("text")
-	message.AddFrom("doe@email.com")
-	message.AddFromName("Doe Email")
-	message.AddBCC("bcc@host.com")
+	message.AddTo("john@email.com")
+	message.AddToName("John Doe")
+	message.SetSubject("test")
+	message.SetHTML("html")
+	message.SetText("text")
+	message.SetFrom("doe@email.com")
+	message.SetFromName("Doe Email")
+	message.AddBcc("bcc@host.com")
+	message.AddCc("cc@host.com")
 
 	aemessage := aemail.Message{
 		To:       []string{"John Doe <john@email.com>"},
@@ -27,6 +28,7 @@ func TestMigrate(t *testing.T) {
 		HTMLBody: "html",
 		Body:     "text",
 		Bcc:      []string{"bcc@host.com"},
+		Cc:       []string{"cc@host.com"},
 	}
 
 	message2, err := migrateMail(&aemessage)
@@ -35,14 +37,18 @@ func TestMigrate(t *testing.T) {
 	}
 
 	sg := NewSendGridClient("", "")
-	val1, err := sg.buildUrl(message)
+	val1, err := sg.buildURL(message)
 	if err != nil {
 		t.Errorf("%s", err)
 	}
 
-	val2, err := sg.buildUrl(*message2)
+	val2, err := sg.buildURL(message2)
 	if err != nil {
 		t.Errorf("%s", err)
+	}
+
+	if !reflect.DeepEqual(message, message2) {
+		t.Errorf("messages not equal\n%#v\n%#v", message, message2)
 	}
 
 	for key := range val1 { // make sure everything in val1 is in val2

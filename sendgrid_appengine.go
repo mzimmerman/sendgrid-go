@@ -80,23 +80,32 @@ func migrateMail(m *aemail.Message) (*SGMail, error) {
 		ReplyTo: m.ReplyTo,
 	}
 	if address, err := netmail.ParseAddress(m.Sender); err == nil {
-		sgmail.From = address.Address
-		sgmail.FromName = address.Name
+		sgmail.SetFrom(address.Address)
+		sgmail.SetFromName(address.Name)
 	} else {
 		return nil, fmt.Errorf("Error parsing Sender address - %v", err)
 	}
 	if addresses, err := netmail.ParseAddressList(strings.Join(m.To, ",")); err == nil {
 		for _, addr := range addresses {
-			sgmail.To = append(sgmail.To, addr.Address)
-			sgmail.ToName = append(sgmail.ToName, addr.Name)
+			sgmail.AddTo(addr.Address)
+			sgmail.AddToName(addr.Name)
 		}
 	} else {
 		return nil, fmt.Errorf("Error parsing To addresses - %v", err)
 	}
+	if len(m.Cc) > 0 {
+		if addresses, err := netmail.ParseAddressList(strings.Join(m.Cc, ",")); err == nil {
+			for _, addr := range addresses {
+				sgmail.AddCc(addr.Address)
+			}
+		} else {
+			return nil, fmt.Errorf("Error parsing CC - %v", err)
+		}
+	}
 	if len(m.Bcc) > 0 {
 		if addresses, err := netmail.ParseAddressList(strings.Join(m.Bcc, ",")); err == nil {
 			for _, addr := range addresses {
-				sgmail.Bcc = append(sgmail.Bcc, addr.Address)
+				sgmail.AddBcc(addr.Address)
 			}
 		} else {
 			return nil, fmt.Errorf("Error parsing BCC - %v", err)
