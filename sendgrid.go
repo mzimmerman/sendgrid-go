@@ -7,8 +7,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
+
+const Version = "1.0.0"
 
 func timeoutHandler(network, address string) (net.Conn, error) {
 	return net.DialTimeout(network, address, time.Duration(5*time.Second))
@@ -57,6 +60,9 @@ func (sg *SGClient) buildURL(m *SGMail) (url.Values, error) {
 	for i := 0; i < len(m.To); i++ {
 		values.Add("to[]", m.To[i])
 	}
+	for i := 0; i < len(m.Cc); i++ {
+		values.Add("cc[]", m.Cc[i])
+	}
 	for i := 0; i < len(m.Bcc); i++ {
 		values.Add("bcc[]", m.Bcc[i])
 	}
@@ -87,18 +93,24 @@ func (sg *SGClient) Send(m *SGMail) error {
 	if e != nil {
 		return e
 	}
-	r, e := sg.Client.PostForm(sg.APIMail, values)
+	req, e := http.NewRequest("POST", sg.APIMail, strings.NewReader(values.Encode()))
 	if e != nil {
-		return fmt.Errorf("sendgrid.go: error:%v; response:%v", e, r)
+		return e
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "sendgrid-go/"+Version+";go")
+	res, e := sg.Client.Do(req)
+	if e != nil {
+		return fmt.Errorf("sendgrid.go: error:%v; response:%v", e, res)
 	}
 
-	defer r.Body.Close()
+	defer res.Body.Close()
 
-	if r.StatusCode == http.StatusOK {
+	if res.StatusCode == http.StatusOK {
 		return nil
 	}
 
-	body, _ := ioutil.ReadAll(r.Body)
+	body, _ := ioutil.ReadAll(res.Body)
 
-	return fmt.Errorf("sendgrid.go: code:%d error:%v body:%s", r.StatusCode, e, body)
+	return fmt.Errorf("sendgrid.go: code:%d error:%v body:%s", res.StatusCode, e, body)
 }
