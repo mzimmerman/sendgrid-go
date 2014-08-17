@@ -114,11 +114,18 @@ func migrateMail(m *aemail.Message) (*SGMail, error) {
 	return &sgmail, nil
 }
 
+// SendMailDelay uses the appengine/delay package to add the sending of the message to the default task queue
+// in the devappserver, it prints the output to the logs immediately
 func SendMailDelay(c appengine.Context, m *aemail.Message) error {
 	sgmail, err := migrateMail(m)
 	if err != nil {
 		return err
 	}
-	SendgridDelay.Call(c, sgmail)
+	if appengine.IsDevAppServer() {
+		// in the dev server, send it immediately
+		return sendMail(c, sgmail)
+	} else {
+		SendgridDelay.Call(c, sgmail)
+	}
 	return nil
 }
