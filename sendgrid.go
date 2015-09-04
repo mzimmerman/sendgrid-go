@@ -4,18 +4,13 @@ package sendgrid
 import (
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 )
 
-const Version = "1.0.0"
-
-func timeoutHandler(network, address string) (net.Conn, error) {
-	return net.DialTimeout(network, address, time.Duration(5*time.Second))
-}
+const Version = "2.0.0"
 
 // SGClient will contain the credentials and default values
 type SGClient struct {
@@ -25,20 +20,37 @@ type SGClient struct {
 	Client  *http.Client
 }
 
-// NewSendGridClient will return a new SGClient.
-func NewSendGridClient(apiUser, apiPwd string) *SGClient {
+// NewSendGridClient will return a new SGClient. Used for username and password
+func NewSendGridClient(apiUser, apiKey string) *SGClient {
 	apiMail := "https://api.sendgrid.com/api/mail.send.json?"
-	return &SGClient{
+
+	Client := &SGClient{
 		apiUser: apiUser,
-		apiPwd:  apiPwd,
+		apiPwd:  apiKey,
 		APIMail: apiMail,
 	}
+
+	return Client
+}
+
+// NewSendGridClient will return a new SGClient. Used for api key
+func NewSendGridClientWithApiKey(apiKey string) *SGClient {
+	apiMail := "https://api.sendgrid.com/api/mail.send.json?"
+
+	Client := &SGClient{
+		apiPwd:  apiKey,
+		APIMail: apiMail,
+	}
+
+	return Client
 }
 
 func (sg *SGClient) buildURL(m *SGMail) (url.Values, error) {
 	values := url.Values{}
-	values.Set("api_user", sg.apiUser)
-	values.Set("api_key", sg.apiPwd)
+	if sg.apiUser != "" {
+		values.Set("api_user", sg.apiUser)
+		values.Set("api_key", sg.apiPwd)
+	}
 	values.Set("subject", m.Subject)
 	values.Set("html", m.HTML)
 	values.Set("text", m.Text)
@@ -81,11 +93,9 @@ func (sg *SGClient) buildURL(m *SGMail) (url.Values, error) {
 // Send will send mail using SG web API
 func (sg *SGClient) Send(m *SGMail) error {
 	if sg.Client == nil {
-		transport := http.Transport{
-			Dial: timeoutHandler,
-		}
 		sg.Client = &http.Client{
-			Transport: &transport,
+			Transport: http.DefaultTransport,
+			Timeout:   5 * time.Second,
 		}
 	}
 	var e error
@@ -98,7 +108,13 @@ func (sg *SGClient) Send(m *SGMail) error {
 		return e
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", "sendgrid-go/"+Version+";go")
+	req.Header.Set("User-Agent", "sendgrid/"+Version+";go")
+
+	// Using API key
+	if sg.apiUser == "" {
+		req.Header.Set("Authorization", "Bearer "+sg.apiPwd)
+	}
+
 	res, e := sg.Client.Do(req)
 	if e != nil {
 		return fmt.Errorf("sendgrid.go: error:%v; response:%v", e, res)

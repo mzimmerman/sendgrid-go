@@ -1,11 +1,23 @@
 # SendGrid-Go
+[![GoDoc](https://godoc.org/github.com/sendgrid/sendgrid-go?status.png)](http://godoc.org/github.com/sendgrid/sendgrid-go) 
+Visit the GoDoc.
+
 [![Build Status](https://travis-ci.org/sendgrid/sendgrid-go.svg?branch=master)](https://travis-ci.org/sendgrid/sendgrid-go)
 SendGrid Helper Library to send emails very easily using Go.
+
+### Warning
+
+Version ``2.x.x`` drops support for Go versions < 1.3.
+
+Version ``1.2.x`` behaves differently in the ``AddTo`` method. In the past this method defaulted to using the ``SMTPAPI`` header. Now you must explicitly call the ``SMTPAPIHeader.AddTo`` method. More on the ``SMTPAPI`` section.
 
 ## Installation
 
 ```bash
 go get github.com/sendgrid/sendgrid-go
+
+// Or pin the version with gopkg
+go get gopkg.in/sendgrid/sendgrid-go.v1
 ```
 
 ## Example
@@ -35,10 +47,16 @@ func main() {
 
 ```
 
+## Usage
+
+To begin using this library, call `NewSendGridClient` with your SendGrid credentials OR `NewSendGridClientWithApiKey` with a SendGrid API Key. API Key is the preferred method. API Keys are in beta. To configure API keys, visit https://sendgrid.com/beta/settings/api_key.
+
 ### Creating a Client
 
 ```go
 sg := sendgrid.NewSendGridClient("sendgrid_user", "sendgrid_key")
+// or
+sg := sendgrid.NewSendGridClientWithApiKey("sendgrid_api_key")
 ```
 
 ### Creating a Mail
@@ -59,8 +77,8 @@ message.AddRecipient(address) // Receives a vaild mail.Address
 
 Same concept as regular recipient excepts the methods are:
 
-*   AddBCC
-*   AddRecipientBCC
+*   AddBcc
+*   AddBccRecipient
 
 ### Setting the Subject
 
@@ -85,7 +103,7 @@ message.SetFrom("example@lol.com")
 ```go
 message.AddAttachment("text.txt", file) // file needs to implement the io.Reader interface
 //or
-message.AddAttachmentStream("filename", []byte("some file content"))
+message.AddAttachmentFromStream("filename", "some file content")
 ```
 ### Adding ContentIDs
 
@@ -101,12 +119,12 @@ If you wish to use the X-SMTPAPI on your own app, you can use the [SMTPAPI Go li
 ### Recipients
 
 ```go
-message.AddTo("addTo@mailinator.com")
+message.SMTPAPIHeader.AddTo("addTo@mailinator.com")
 // or
 tos := []string{"test@test.com", "test@email.com"}
-message.AddTos(tos)
+message.SMTPAPIHeader.AddTos(tos)
 // or
-message.SetTos(tos)
+message.SMTPAPIHeader.SetTos(tos)
 ```
 
 ### [Substitutions](http://sendgrid.com/docs/API_Reference/SMTP_API/substitution_tags.html)
