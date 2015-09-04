@@ -9,11 +9,14 @@ import (
 	"strings"
 	"sync"
 
-	"appengine"
-	"appengine/datastore"
-	"appengine/delay"
+	"golang.org/x/net/context"
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/datastore"
+	"google.golang.org/appengine/delay"
+	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
+
 	aemail "appengine/mail"
-	"appengine/urlfetch"
 )
 
 var globalConfig *Config
@@ -23,9 +26,9 @@ var ErrConfig = errors.New("Unable to fetch SendGrid config")
 
 var SendgridDelay = delay.Func("sendgrid", sendMail)
 
-func sendMail(c appengine.Context, sgmail *SGMail) error {
+func sendMail(c context.Context, sgmail *SGMail) error {
 	if appengine.IsDevAppServer() {
-		c.Infof("Would have sent e-mail - %#v", sgmail)
+		log.Infof(c, "Would have sent e-mail - %#v", sgmail)
 		return nil
 	}
 	err := loadConfig(c)
@@ -42,7 +45,7 @@ type Config struct {
 	APIPassword string
 }
 
-func loadConfig(c appengine.Context) error {
+func loadConfig(c context.Context) error {
 	configSync.Lock()
 	defer configSync.Unlock()
 	if globalConfig == nil {
@@ -50,7 +53,7 @@ func loadConfig(c appengine.Context) error {
 		tempConfig := new(Config)
 		err := datastore.Get(c, key, tempConfig)
 		if err != nil {
-			c.Errorf("Unable to fetch SendGrid config, please populate information in web console - %v", err)
+			log.Errorf(c, "Unable to fetch SendGrid config, please populate information in web console - %v", err)
 			_, err = datastore.Put(c, key, &Config{
 				APIUser:     "default",
 				APIPassword: "default",
@@ -58,13 +61,13 @@ func loadConfig(c appengine.Context) error {
 			// put the default stub entry
 			// so it can be updated in the web console
 			if err != nil {
-				c.Errorf("Error putting stub SendGrid config - %v", err)
+				log.Errorf(c, "Error putting stub SendGrid config - %v", err)
 			}
 			return ErrConfig
 		}
 		if tempConfig.APIPassword == "default" || tempConfig.APIUser == "default" ||
 			tempConfig.APIPassword == "" || tempConfig.APIUser == "" {
-			c.Errorf("Found default SendGrid config in the datastore, please populate information in web console")
+			log.Errorf(c, "Found default SendGrid config in the datastore, please populate information in web console")
 			return ErrConfig
 		}
 		globalConfig = tempConfig
@@ -116,7 +119,7 @@ func migrateMail(m *aemail.Message) (*SGMail, error) {
 
 // SendMailDelay uses the appengine/delay package to add the sending of the message to the default task queue
 // in the devappserver, it prints the output to the logs immediately
-func SendMailDelay(c appengine.Context, m *aemail.Message) error {
+func SendMailDelay(c context.Context, m *aemail.Message) error {
 	sgmail, err := migrateMail(m)
 	if err != nil {
 		return err
