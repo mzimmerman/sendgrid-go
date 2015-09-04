@@ -16,7 +16,7 @@ import (
 	"google.golang.org/appengine/log"
 	"google.golang.org/appengine/urlfetch"
 
-	aemail "appengine/mail"
+	aemail "google.golang.org/appengine/mail"
 )
 
 var globalConfig *Config
